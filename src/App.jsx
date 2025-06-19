@@ -1,5 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
+import { db } from './firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  setDoc
+} from 'firebase/firestore';
 
 const ADMIN_PASSWORD = 'admin';
 
@@ -64,6 +74,18 @@ function App() {
     },
   ]);
 
+  useEffect(() => {
+    const fetchSubscribers = async () => {
+      const snapshot = await getDocs(collection(db, "subscribers"));
+      const subs = snapshot.docs.map(doc => ({
+        id: doc.id, // store Firestore ID for update/delete
+        ...doc.data()
+      }));
+      setSubscribers(subs);
+    };
+    fetchSubscribers();
+  }, []);  
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -79,47 +101,122 @@ function App() {
     }
   };
 
-  const handleAddSubscriber = (e) => {
+  const handleAddSubscriber = async (e) => {
     e.preventDefault();
     if (!newName || !newEmail || !newType) return;
-
+  
     let expiresAt = '-';
     const today = new Date();
-
+  
     if (newType === 'Monthly') {
-      const nextMonth = new Date(today);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      expiresAt = nextMonth.toISOString().split('T')[0];
+      today.setMonth(today.getMonth() + 1);
+      expiresAt = today.toISOString().split('T')[0];
     } else if (newType === 'Yearly') {
-      const nextYear = new Date(today);
-      nextYear.setFullYear(nextYear.getFullYear() + 1);
-      expiresAt = nextYear.toISOString().split('T')[0];
+      today.setFullYear(today.getFullYear() + 1);
+      expiresAt = today.toISOString().split('T')[0];
     }
-
+  
     const newSub = {
       name: newName,
       email: newEmail,
       subscriptionType: newType,
       expiresAt: expiresAt,
     };
-
-    setSubscribers([...subscribers, newSub]);
-
-    // Reset form & close dialog
+  
+    // Add to Firestore:
+    const docRef = await addDoc(collection(db, "subscribers"), newSub);
+  
+    // Add to local state:
+    setSubscribers([...subscribers, { id: docRef.id, ...newSub }]);
+  
     setNewName('');
     setNewEmail('');
     setNewType('Monthly');
     setIsDialogOpen(false);
+  };  
+
+  // const handleAddSubscriber = (e) => {
+  //   e.preventDefault();
+  //   if (!newName || !newEmail || !newType) return;
+
+  //   let expiresAt = '-';
+  //   const today = new Date();
+
+  //   if (newType === 'Monthly') {
+  //     const nextMonth = new Date(today);
+  //     nextMonth.setMonth(nextMonth.getMonth() + 1);
+  //     expiresAt = nextMonth.toISOString().split('T')[0];
+  //   } else if (newType === 'Yearly') {
+  //     const nextYear = new Date(today);
+  //     nextYear.setFullYear(nextYear.getFullYear() + 1);
+  //     expiresAt = nextYear.toISOString().split('T')[0];
+  //   }
+
+  //   const newSub = {
+  //     name: newName,
+  //     email: newEmail,
+  //     subscriptionType: newType,
+  //     expiresAt: expiresAt,
+  //   };
+
+  //   setSubscribers([...subscribers, newSub]);
+
+  //   // Reset form & close dialog
+  //   setNewName('');
+  //   setNewEmail('');
+  //   setNewType('Monthly');
+  //   setIsDialogOpen(false);
+  // };
+
+  const handleRenewSubscription = async () => {
+    const subsCopy = [...subscribers];
+    const sub = subsCopy[selectedSubscriberIndex];
+  
+    let baseDate = sub.expiresAt && sub.expiresAt !== '-' ? new Date(sub.expiresAt) : new Date();
+    let newExpiry = '-';
+  
+    if (renewType === 'Monthly') {
+      baseDate.setMonth(baseDate.getMonth() + 1);
+      newExpiry = baseDate.toISOString().split('T')[0];
+    } else if (renewType === 'Yearly') {
+      baseDate.setFullYear(baseDate.getFullYear() + 1);
+      newExpiry = baseDate.toISOString().split('T')[0];
+    }
+  
+    sub.subscriptionType = renewType;
+    sub.expiresAt = newExpiry;
+  
+    // Update Firestore:
+    const docRef = doc(db, "subscribers", sub.id);
+    await updateDoc(docRef, {
+      subscriptionType: renewType,
+      expiresAt: newExpiry
+    });
+  
+    setSubscribers(subsCopy);
+    setEditDialogOpen(false);
   };
 
-  const handleDeleteSubscriber = () => {
-    if (selectedSubscriberIndex !== null) {
-      const updated = [...subscribers];
-      updated.splice(selectedSubscriberIndex, 1);
-      setSubscribers(updated);
-      setEditDialogOpen(false);
+  const handleDeleteSubscriber = async () => {
+    const sub = subscribers[selectedSubscriberIndex];
+    if (sub.id) {
+      await deleteDoc(doc(db, "subscribers", sub.id));
     }
-  };
+  
+    const updated = [...subscribers];
+    updated.splice(selectedSubscriberIndex, 1);
+    setSubscribers(updated);
+    setEditDialogOpen(false);
+  };  
+
+  // const handleDeleteSubscriber = () => {
+  //   if (selectedSubscriberIndex !== null) {
+  //     const updated = [...subscribers];
+  //     updated.splice(selectedSubscriberIndex, 1);
+  //     setSubscribers(updated);
+  //     setEditDialogOpen(false);
+  //   }
+  // };
 
   if (!authenticated) {
     return (
