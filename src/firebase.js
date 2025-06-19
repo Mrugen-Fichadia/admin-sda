@@ -2,14 +2,13 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// 🔑 Replace with your Firebase web config:
 const firebaseConfig = {
-  apiKey: "AIzaSyAP_SGZ-8uxOg-oktRAIEj0Jp2p9d8IvNE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "smart-distribution-app",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "654105791492",
-  appId: "1:654105791492:android:6e6f031557c6f1953bf951"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
