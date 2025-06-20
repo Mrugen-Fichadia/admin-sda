@@ -30,7 +30,7 @@ function App() {
       setUsers(usersData);
       setLoading(false); // Stop loading once data is fetched
     }, (error) => {
-      console.error('Error fetching users:', error);
+      console.error();
       setError('Failed to fetch users: ' + error.message);
       setLoading(false);
     });
@@ -76,12 +76,11 @@ function App() {
         amount: plan === 'Monthly Plan' ? 699 : plan === 'Yearly Plan' ? 5999 : 24999,
         startDate: today.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],
-        createdAt: today.toISOString(),
+        createdAt: today.toISOString().split('T')[0], // Adjusted to match date format
         paymentId: 'not_provided',
         orderId: 'not_provided',
       };
 
-      console.log('Subscription data being sent:', subscriptionData); // Debug log
       // Update the user document with the subscription details
       await updateDoc(userDoc.ref, {
         subscription: subscriptionData,
@@ -97,8 +96,7 @@ function App() {
       setLoading(false);
     } catch (err) {
       console.error('Subscription update error:', err);
-      setError('Failed to update subscription: ' + err.message);
-      setLoading(false);
+      setLoading(false); // Reset loading state on error, no error message displayed
     }
   };
 
