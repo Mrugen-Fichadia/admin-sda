@@ -2,7 +2,6 @@
   width: 100vw;
   height: 100vh;
 }
-
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -36,6 +35,12 @@ body {
   padding: 0 20px;
 }
 
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+}
+
 .panel-heading {
   font-size: 2rem;
   text-align: center;
@@ -58,6 +63,7 @@ body {
 
 .table-wrapper {
   max-height: 85vh;
+  width: 100%;
   overflow-y: auto;
   margin: 5px auto;
   border-radius: 8px;
@@ -82,9 +88,14 @@ body {
   padding: 0 10px;
 }
 
+.card-header .card-part {
+  padding: 0 10px;
+}
+
 .subscribers-list {
   display: flex;
   flex-direction: column;
+  width: 100%;
   gap: 20px;
   align-items: center;
   margin-bottom: 10px;
@@ -138,7 +149,7 @@ body {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  background: rgb(139, 0, 0); /* Maroon color */
+  background: rgb(139, 0, 0);
   color: #fff;
   border: none;
   padding: 15px 25px;
@@ -150,7 +161,7 @@ body {
 }
 
 .add-btn-floating:hover {
-  background: rgb(104, 2, 2); /* Darker maroon on hover */
+  background: rgb(104, 2, 2);
   transform: scale(1.05);
 }
 
@@ -201,12 +212,6 @@ body {
   background: rgb(98, 2, 2);
 }
 
-.delete-close-btn {
-  display: flex;
-  margin-top: 30px;
-  justify-content: space-between;
-}
-
 .delete-btn {
   margin-top: 10px;
   background: red;
@@ -214,6 +219,12 @@ body {
   border: none;
   padding: 10px;
   cursor: pointer;
+}
+
+.delete-close-btn {
+  display: flex;
+  margin-top: 30px;
+  justify-content: space-between;
 }
 
 .delete-btn:hover {
