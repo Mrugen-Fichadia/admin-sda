@@ -18,6 +18,7 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true); // Loading state
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State for dialog visibility
+  const currentDate = new Date(); // Current date for expiration check
 
   useEffect(() => {
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -30,7 +31,7 @@ function App() {
       console.log(usersData);
       setLoading(false); // Stop loading once data is fetched
     }, (error) => {
-      console.error('Error fetching users:', error);
+      console.error();
       setError('Failed to fetch users: ' + error.message);
       setLoading(false);
     });
@@ -47,6 +48,7 @@ function App() {
     setLoading(true);
     try {
       console.log('Updating subscription for:', userEmail, plan);
+  
       const q = query(collection(db, 'users'), where('email', '==', userEmail));
       const querySnapshot = await getDocs(q);
   
@@ -59,26 +61,28 @@ function App() {
       const userDoc = querySnapshot.docs[0];
       const userId = userDoc.id;
   
-      // Determine the base date: today or current subscription end date if valid
-      let baseDate = new Date();
-      const currentSub = userDoc.data().subscription;
-      if (currentSub && currentSub.endDate && currentSub.endDate !== '-') {
-        const existingEnd = new Date(currentSub.endDate);
-        if (existingEnd > new Date()) {
-          baseDate = existingEnd; // Use existing end date if it's in the future
+      // Get today’s date
+      const today = new Date();
+  
+      // Determine base date: either today, or existing endDate if in future
+      let baseDate = new Date(today);
+  
+      if (userDoc.data().subscription && userDoc.data().subscription.endDate) {
+        const existingEndDate = new Date(userDoc.data().subscription.endDate);
+        if (existingEndDate > today) {
+          baseDate = existingEndDate;
         }
       }
   
-      let endDate = '-';
+      // Calculate new endDate based on baseDate + plan length
+      let newEndDate = new Date(baseDate);
   
       if (plan === 'Monthly Plan') {
-        const newEnd = new Date(baseDate);
-        newEnd.setMonth(newEnd.getMonth() + 1);
-        endDate = newEnd.toISOString().split('T')[0];
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
       } else if (plan === 'Yearly Plan') {
-        const newEnd = new Date(baseDate);
-        newEnd.setFullYear(newEnd.getFullYear() + 1);
-        endDate = newEnd.toISOString().split('T')[0];
+        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+      } else if (plan === 'Lifetime Plan') {
+        newEndDate = new Date('2050-12-31');
       }
   
       const subscriptionData = {
@@ -90,39 +94,33 @@ function App() {
             ? 5999
             : 24999,
         startDate: baseDate.toISOString().split('T')[0],
-        endDate,
-        createdAt: new Date().toISOString(), // actual update timestamp
+        endDate: newEndDate.toISOString().split('T')[0],
+        createdAt: today.toISOString().split('T')[0], // Current date/time for log
         paymentId: 'not_provided',
         orderId: 'not_provided',
       };
-      console.log("Completed here1\n\n");
   
-      // Update the user document with the subscription details
-
+      console.log('Subscription data:', subscriptionData);
+  
+      // Update the user document
       await updateDoc(userDoc.ref, {
         subscription: subscriptionData,
       });
-
-      console.log("Completed here2\n\n");
-      console.log(subscriptionData);
   
-      // Add the subscription to the subscriptions subcollection
+      // Add to subscriptions subcollection
       await addDoc(collection(db, 'users', userId, 'subscriptions'), subscriptionData);
-
-      console.log("Completed here3\n\n");
-      setError('');
+  
       alert('Subscription updated successfully!');
+      setError('');
       setUserEmail('');
-      //setPlan('Lifetime Plan');
-      setIsDialogOpen(false); // Close dialog after successful update
+      setIsDialogOpen(false);
       setLoading(false);
+  
     } catch (err) {
       console.error('Subscription update error:', err);
-      setError('Failed to update subscription: ' + err.message);
       setLoading(false);
     }
-  };
-  ;
+  };  
 
   const openDialog = () => setIsDialogOpen(true);
   const closeDialog = () => {
@@ -147,45 +145,34 @@ function App() {
           <div className="card-part fourth-part"><strong>Expiry</strong></div>
         </div>
         <div className="subscribers-list">
-        {users.length > 0 ? (
-          users.map((user, idx) => {
-            let isExpired = false;
+          {users.length > 0 ? (
+            users.map((user, idx) => {
+              const subscription = user.subscription || {};
+              const endDate = new Date(subscription.endDate || '1970-01-01');
+              const isExpired = currentDate > endDate;
 
-            if (user.subscription && user.subscription.endDate && user.subscription.endDate !== '-') {
-              isExpired = new Date(user.subscription.endDate) < new Date();
-            }
-            if (!user.subscription) {
-              isExpired = true;
-            }
-
-            return (
-              <div
-                key={user.id || idx}
-                className={`subscriber-card ${isExpired ? 'expired' : ''}`}
-                onClick={() => {
-                  setUserEmail(user.email);
-                  setIsDialogOpen(true);
-                  setPlan(user.subscription?.plan || 'Lifetime Plan');
-                }}
-              >
-                <div className="card-part first-part">
-                  <h3>{user.fullName || 'N/A'}</h3>
+              return (
+                <div
+                  key={user.id || idx}
+                  className={`subscriber-card ${isExpired ? 'expired' : ''}`}
+                  onClick={() => {
+                    setUserEmail(user.email);   // pre-fill user email
+                    setPlan('Lifetime Plan');   // or keep previous value if you want
+                    setIsDialogOpen(true);      // open the dialog
+                  }}
+                >
+                  <div className="card-part first-part"><h3>{user.fullName || 'N/A'}</h3></div>
+                  <div className="card-part second-part"><p>{user.email || 'N/A'}</p></div>
+                  <div className="card-part third-part">
+                    {isExpired ? 'No Plan' : subscription.plan || 'No Plan'}
+                  </div>
+                  <div className="card-part fourth-part"><p>{user.subscription && user.subscription.endDate? user.subscription.endDate : 'N/A'}</p></div>
                 </div>
-                <div className="card-part second-part">
-                  <p>{user.email || 'N/A'}</p>
-                </div>
-                <div className="card-part third-part">
-                  {user.subscription && user.subscription.plan ? user.subscription.plan : 'No Plan'}
-                </div>
-                <div className="card-part fourth-part">
-                  <p>{user.subscription && user.subscription.endDate ? user.subscription.endDate : 'N/A'}</p>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <p>No users found.</p>
-        )}
+              );
+            })
+          ) : (
+            <p>No users found.</p>
+          )}
         </div>
       </div>
       <button className="add-btn-floating" onClick={openDialog}>+</button>

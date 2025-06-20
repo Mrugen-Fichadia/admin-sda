@@ -3,13 +3,13 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCyaRoIa9bNBLnjy_L6QMzLehI2EDr6zwg',
-  authDomain: 'smart-distribution-app.firebaseapp.com',
-  projectId: 'smart-distribution-app',
-  storageBucket: 'smart-distribution-app.firebasestorage.app',
-  messagingSenderId: '654105791492',
-  appId: '1:654105791492:web:4207beffb6a668313bf951',
-  measurementId: 'G-03TYPV7RCX',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
