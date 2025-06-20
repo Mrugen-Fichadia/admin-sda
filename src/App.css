@@ -2,6 +2,7 @@
   width: 100vw;
   height: 100vh;
 }
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -81,10 +82,6 @@ body {
   padding: 0 10px;
 }
 
-.card-header .card-part {
-  padding: 0 10px;
-}
-
 .subscribers-list {
   display: flex;
   flex-direction: column;
@@ -141,7 +138,7 @@ body {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  background: rgb(139, 0, 0);
+  background: rgb(139, 0, 0); /* Maroon color */
   color: #fff;
   border: none;
   padding: 15px 25px;
@@ -153,7 +150,7 @@ body {
 }
 
 .add-btn-floating:hover {
-  background: rgb(104, 2, 2);
+  background: rgb(104, 2, 2); /* Darker maroon on hover */
   transform: scale(1.05);
 }
 
@@ -204,6 +201,12 @@ body {
   background: rgb(98, 2, 2);
 }
 
+.delete-close-btn {
+  display: flex;
+  margin-top: 30px;
+  justify-content: space-between;
+}
+
 .delete-btn {
   margin-top: 10px;
   background: red;
@@ -211,12 +214,6 @@ body {
   border: none;
   padding: 10px;
   cursor: pointer;
-}
-
-.delete-close-btn {
-  display: flex;
-  margin-top: 30px;
-  justify-content: space-between;
 }
 
 .delete-btn:hover {
@@ -234,83 +231,4 @@ body {
 
 .close-btn:hover {
   background: #555;
-}
-.loading {
-  text-align: center;
-  padding: 20px;
-  font-size: 18px;
-}
-
-.login-container, .admin-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-}
-
-.login-container form, .subscription-form {
-  display: flex;
-  flex-direction: column;
-  width: 300px;
-}
-
-input, select, button {
-  margin: 10px 0;
-  padding: 8px;
-  font-size: 16px;
-}
-
-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-.error {
-  color: red;
-}
-
-.panel-heading {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-.table-wrapper {
-  margin-top: 20px;
-  width: 100%;
-  max-width: 600px;
-}
-
-.card-header {
-  display: flex;
-  background-color: #d32f2f;
-  color: white;
-  padding: 10px;
-  border-radius: 4px 4px 0 0;
-}
-
-.card-part {
-  flex: 1;
-  text-align: center;
-}
-
-.users-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.user-card {
-  display: flex;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
-
-.user-card .card-part {
-  flex: 1;
-  text-align: center;
 }
