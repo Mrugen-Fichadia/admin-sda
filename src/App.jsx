@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { db, auth } from './firebase';
+import { db } from './firebase';
 import {
   collection,
   query,
@@ -9,86 +9,34 @@ import {
   addDoc,
   onSnapshot,
 } from 'firebase/firestore';
-import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 
 function App() {
-  const [email, setEmail] = useState('admin@smartdistributor.com'); // Admin email
-  const [password, setPassword] = useState(''); // Admin password
-  const [authenticated, setAuthenticated] = useState(false);
-  const [error, setError] = useState('');
   const [users, setUsers] = useState([]); // Store users from users collection
   const [userEmail, setUserEmail] = useState(''); // Email of user to update
   const [plan, setPlan] = useState('Lifetime Plan'); // Selected subscription plan
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true); // Loading state
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      console.log('Auth state changed:', user);
-      setAuthenticated(!!user);
-      if (user) {
-        setLoading(false); // Stop loading once authenticated
-      } else {
-        setLoading(false); // Stop loading if no user (show login)
-      }
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      console.log('Users snapshot:', snapshot.docs);
+      const usersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setUsers(usersData);
+      setLoading(false); // Stop loading once data is fetched
+    }, (error) => {
+      console.error('Error fetching users:', error);
+      setError('Failed to fetch users: ' + error.message);
+      setLoading(false);
     });
 
-    let unsubscribeUsers = () => {};
-    if (authenticated) {
-      unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-        console.log('Users snapshot:', snapshot.docs);
-        const usersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setUsers(usersData);
-        setLoading(false); // Stop loading once data is fetched
-      }, (error) => {
-        console.error('Error fetching users:', error);
-        setError('Failed to fetch users: ' + error.message);
-        setLoading(false);
-      });
-    }
-
-    return () => {
-      unsubscribeAuth();
-      unsubscribeUsers();
-    };
-  }, [authenticated]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      console.log('Attempting login with:', email, password);
-      const q = query(collection(db, 'admins'), where('email', '==', email));
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        setError('Admin not found.');
-        setLoading(false);
-        return;
-      }
-
-      const adminDoc = querySnapshot.docs[0];
-      const adminData = adminDoc.data();
-      console.log('Admin data:', adminData);
-      if (adminData.password !== password) {
-        setError('Incorrect password.');
-        setLoading(false);
-        return;
-      }
-
-      await signInWithEmailAndPassword(auth, email, password);
-      setError('');
-      setLoading(false);
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Login failed: ' + err.message);
-      setLoading(false);
-    }
-  };
+    return () => unsubscribeUsers();
+  }, []);
 
   const updateSubscription = async () => {
+    
     if (!userEmail || !plan) {
       setError('Please enter user email and select a plan.');
       return;
@@ -142,31 +90,6 @@ function App() {
     return <div className="loading">Loading...</div>;
   }
 
-  if (!authenticated) {
-    return (
-      <div className="login-container">
-        <h1>Admin Login</h1>
-        <form onSubmit={handleLogin}>
-          <input
-            type="email"
-            placeholder="Enter admin email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled
-          />
-          <input
-            type="password"
-            placeholder="Enter admin password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button type="submit">Enter</button>
-        </form>
-        {error && <p className="error">{error}</p>}
-      </div>
-    );
-  }
-
   return (
     <div className="admin-panel">
       <h1 className="panel-heading">Smart Distributor Admin Panel</h1>
@@ -182,7 +105,9 @@ function App() {
           <option value="Monthly Plan">Monthly Plan (₹699)</option>
           <option value="Yearly Plan">Yearly Plan (₹5,999)</option>
         </select>
-        <button onClick={updateSubscription}>Update Subscription</button>
+        <button onClick={updateSubscription}>
+          Update Subscription
+        </button>
         {error && <p className="error">{error}</p>}
       </div>
       <div className="table-wrapper">
