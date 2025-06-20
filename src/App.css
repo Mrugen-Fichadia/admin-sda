@@ -235,3 +235,82 @@ body {
 .close-btn:hover {
   background: #555;
 }
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+}
+
+.login-container, .admin-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.login-container form, .subscription-form {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+}
+
+input, select, button {
+  margin: 10px 0;
+  padding: 8px;
+  font-size: 16px;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.error {
+  color: red;
+}
+
+.panel-heading {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.table-wrapper {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.card-header {
+  display: flex;
+  background-color: #d32f2f;
+  color: white;
+  padding: 10px;
+  border-radius: 4px 4px 0 0;
+}
+
+.card-part {
+  flex: 1;
+  text-align: center;
+}
+
+.users-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.user-card {
+  display: flex;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.user-card .card-part {
+  flex: 1;
+  text-align: center;
+}

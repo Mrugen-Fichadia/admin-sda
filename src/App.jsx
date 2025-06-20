@@ -1,228 +1,159 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   collection,
+  query,
+  where,
   getDocs,
   addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  setDoc
+  onSnapshot,
 } from 'firebase/firestore';
-
-const ADMIN_PASSWORD = 'admin';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 
 function App() {
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@smartdistributor.com'); // Admin email
+  const [password, setPassword] = useState(''); // Admin password
   const [authenticated, setAuthenticated] = useState(false);
   const [error, setError] = useState('');
-
-  // States for editing
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedSubscriberIndex, setSelectedSubscriberIndex] = useState(null);
-  const [renewType, setRenewType] = useState('Monthly');
-
-  const [subscribers, setSubscribers] = useState([
-    {
-      name: 'Alice Johnson',
-      email: 'alice@example.com',
-      subscriptionType: 'Monthly',
-      expiresAt: '2025-07-20'
-    },
-    {
-      name: 'Bob Smith',
-      email: 'bob@example.com',
-      subscriptionType: 'Yearly',
-      expiresAt: '2026-06-20'
-    },
-    {
-      name: 'Charlie Brown',
-      email: 'charlie@example.com',
-      subscriptionType: 'Lifetime',
-      expiresAt: '-'
-    },
-    {
-      name: 'David Lee',
-      email: 'david.lee@example.com',
-      subscriptionType: 'Monthly',
-      expiresAt: '2025-05-20'
-    },
-    {
-      name: 'Emily Davis',
-      email: 'emily.davis@example.com',
-      subscriptionType: 'Yearly',
-      expiresAt: '2026-06-20'
-    },
-    {
-      name: 'Frank Miller',
-      email: 'frank.miller@example.com',
-      subscriptionType: 'Lifetime',
-      expiresAt: '-'
-    },
-    {
-      name: 'Grace Hopper',
-      email: 'grace.hopper@example.com',
-      subscriptionType: 'Monthly',
-      expiresAt: '2025-07-20'
-    },
-    {
-      name: 'Hannah Wilson',
-      email: 'hannah.wilson@example.com',
-      subscriptionType: 'Yearly',
-      expiresAt: '2026-06-20'
-    },
-  ]);
+  const [users, setUsers] = useState([]); // Store users from users collection
+  const [userEmail, setUserEmail] = useState(''); // Email of user to update
+  const [plan, setPlan] = useState('Lifetime Plan'); // Selected subscription plan
+  const [loading, setLoading] = useState(true); // Loading state
 
   useEffect(() => {
-    const fetchSubscribers = async () => {
-      const snapshot = await getDocs(collection(db, "subscribers"));
-      const subs = snapshot.docs.map(doc => ({
-        id: doc.id, // store Firestore ID for update/delete
-        ...doc.data()
-      }));
-      setSubscribers(subs);
-    };
-    fetchSubscribers();
-  }, []);  
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newType, setNewType] = useState('Monthly');
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      setError('');
-    } else {
-      setError('Incorrect password. Try again.');
-    }
-  };
-
-  const handleAddSubscriber = async (e) => {
-    e.preventDefault();
-    if (!newName || !newEmail || !newType) return;
-  
-    let expiresAt = '-';
-    const today = new Date();
-  
-    if (newType === 'Monthly') {
-      today.setMonth(today.getMonth() + 1);
-      expiresAt = today.toISOString().split('T')[0];
-    } else if (newType === 'Yearly') {
-      today.setFullYear(today.getFullYear() + 1);
-      expiresAt = today.toISOString().split('T')[0];
-    }
-  
-    const newSub = {
-      name: newName,
-      email: newEmail,
-      subscriptionType: newType,
-      expiresAt: expiresAt,
-    };
-  
-    // Add to Firestore:
-    const docRef = await addDoc(collection(db, "subscribers"), newSub);
-  
-    // Add to local state:
-    setSubscribers([...subscribers, { id: docRef.id, ...newSub }]);
-  
-    setNewName('');
-    setNewEmail('');
-    setNewType('Monthly');
-    setIsDialogOpen(false);
-  };  
-
-  // const handleAddSubscriber = (e) => {
-  //   e.preventDefault();
-  //   if (!newName || !newEmail || !newType) return;
-
-  //   let expiresAt = '-';
-  //   const today = new Date();
-
-  //   if (newType === 'Monthly') {
-  //     const nextMonth = new Date(today);
-  //     nextMonth.setMonth(nextMonth.getMonth() + 1);
-  //     expiresAt = nextMonth.toISOString().split('T')[0];
-  //   } else if (newType === 'Yearly') {
-  //     const nextYear = new Date(today);
-  //     nextYear.setFullYear(nextYear.getFullYear() + 1);
-  //     expiresAt = nextYear.toISOString().split('T')[0];
-  //   }
-
-  //   const newSub = {
-  //     name: newName,
-  //     email: newEmail,
-  //     subscriptionType: newType,
-  //     expiresAt: expiresAt,
-  //   };
-
-  //   setSubscribers([...subscribers, newSub]);
-
-  //   // Reset form & close dialog
-  //   setNewName('');
-  //   setNewEmail('');
-  //   setNewType('Monthly');
-  //   setIsDialogOpen(false);
-  // };
-
-  const handleRenewSubscription = async () => {
-    const subsCopy = [...subscribers];
-    const sub = subsCopy[selectedSubscriberIndex];
-  
-    let baseDate = sub.expiresAt && sub.expiresAt !== '-' ? new Date(sub.expiresAt) : new Date();
-    let newExpiry = '-';
-  
-    if (renewType === 'Monthly') {
-      baseDate.setMonth(baseDate.getMonth() + 1);
-      newExpiry = baseDate.toISOString().split('T')[0];
-    } else if (renewType === 'Yearly') {
-      baseDate.setFullYear(baseDate.getFullYear() + 1);
-      newExpiry = baseDate.toISOString().split('T')[0];
-    }
-  
-    sub.subscriptionType = renewType;
-    sub.expiresAt = newExpiry;
-  
-    // Update Firestore:
-    const docRef = doc(db, "subscribers", sub.id);
-    await updateDoc(docRef, {
-      subscriptionType: renewType,
-      expiresAt: newExpiry
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user);
+      setAuthenticated(!!user);
+      if (user) {
+        setLoading(false); // Stop loading once authenticated
+      } else {
+        setLoading(false); // Stop loading if no user (show login)
+      }
     });
-  
-    setSubscribers(subsCopy);
-    setEditDialogOpen(false);
+
+    let unsubscribeUsers = () => {};
+    if (authenticated) {
+      unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        console.log('Users snapshot:', snapshot.docs);
+        const usersData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setUsers(usersData);
+        setLoading(false); // Stop loading once data is fetched
+      }, (error) => {
+        console.error('Error fetching users:', error);
+        setError('Failed to fetch users: ' + error.message);
+        setLoading(false);
+      });
+    }
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeUsers();
+    };
+  }, [authenticated]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      console.log('Attempting login with:', email, password);
+      const q = query(collection(db, 'admins'), where('email', '==', email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('Admin not found.');
+        setLoading(false);
+        return;
+      }
+
+      const adminDoc = querySnapshot.docs[0];
+      const adminData = adminDoc.data();
+      console.log('Admin data:', adminData);
+      if (adminData.password !== password) {
+        setError('Incorrect password.');
+        setLoading(false);
+        return;
+      }
+
+      await signInWithEmailAndPassword(auth, email, password);
+      setError('');
+      setLoading(false);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Login failed: ' + err.message);
+      setLoading(false);
+    }
   };
 
-  const handleDeleteSubscriber = async () => {
-    const sub = subscribers[selectedSubscriberIndex];
-    if (sub.id) {
-      await deleteDoc(doc(db, "subscribers", sub.id));
+  const updateSubscription = async () => {
+    if (!userEmail || !plan) {
+      setError('Please enter user email and select a plan.');
+      return;
     }
-  
-    const updated = [...subscribers];
-    updated.splice(selectedSubscriberIndex, 1);
-    setSubscribers(updated);
-    setEditDialogOpen(false);
-  };  
 
-  // const handleDeleteSubscriber = () => {
-  //   if (selectedSubscriberIndex !== null) {
-  //     const updated = [...subscribers];
-  //     updated.splice(selectedSubscriberIndex, 1);
-  //     setSubscribers(updated);
-  //     setEditDialogOpen(false);
-  //   }
-  // };
+    setLoading(true);
+    try {
+      console.log('Updating subscription for:', userEmail, plan);
+      const q = query(collection(db, 'users'), where('email', '==', userEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('No user found with that email.');
+        setLoading(false);
+        return;
+      }
+
+      const userDoc = querySnapshot.docs[0];
+      const userId = userDoc.id; // Autogenerated ID
+      const today = new Date();
+      let endDate = '-';
+
+      if (plan === 'Monthly Plan') {
+        today.setMonth(today.getMonth() + 1);
+        endDate = today.toISOString().split('T')[0];
+      } else if (plan === 'Yearly Plan') {
+        today.setFullYear(today.getFullYear() + 1);
+        endDate = today.toISOString().split('T')[0];
+      }
+
+      const subscriptionData = {
+        plan,
+        amount: plan === 'Monthly Plan' ? 699 : plan === 'Yearly Plan' ? 5999 : 24999,
+        startDate: today.toISOString().split('T')[0],
+        endDate,
+        createdAt: today.toISOString(),
+      };
+
+      await addDoc(collection(db, 'users', userId, 'subscriptions'), subscriptionData);
+      setError('Subscription updated successfully!');
+      setUserEmail('');
+      setLoading(false);
+    } catch (err) {
+      console.error('Subscription update error:', err);
+      setError('Failed to update subscription: ' + err.message);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
 
   if (!authenticated) {
     return (
       <div className="login-container">
         <h1>Admin Login</h1>
         <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Enter admin email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled
+          />
           <input
             type="password"
             placeholder="Enter admin password"
@@ -239,147 +170,45 @@ function App() {
   return (
     <div className="admin-panel">
       <h1 className="panel-heading">Smart Distributor Admin Panel</h1>
-
+      <div className="subscription-form">
+        <input
+          type="email"
+          placeholder="Enter user email"
+          value={userEmail}
+          onChange={(e) => setUserEmail(e.target.value)}
+        />
+        <select value={plan} onChange={(e) => setPlan(e.target.value)}>
+          <option value="Lifetime Plan">Lifetime Plan (₹24,999)</option>
+          <option value="Monthly Plan">Monthly Plan (₹699)</option>
+          <option value="Yearly Plan">Yearly Plan (₹5,999)</option>
+        </select>
+        <button onClick={updateSubscription}>Update Subscription</button>
+        {error && <p className="error">{error}</p>}
+      </div>
       <div className="table-wrapper">
         <div className="card-header">
           <div className="card-part first-part"><strong>Name</strong></div>
           <div className="card-part second-part"><strong>Email</strong></div>
-          <div className="card-part third-part"><strong>Subscription</strong></div>
-          <div className="card-part fourth-part"><strong>Expiry</strong></div>
+          <div className="card-part third-part"><strong>Plan</strong></div>
         </div>
-
-        <div className="subscribers-list">
-          {subscribers.map((sub, idx) => {
-            const isExpired =
-              sub.expiresAt !== '-' &&
-              new Date(sub.expiresAt) < new Date();
-
-            return (
-              <div
-                key={idx}
-                className={`subscriber-card ${isExpired ? 'expired' : ''}`}
-                onClick={() => {
-                  setSelectedSubscriberIndex(idx);
-                  setRenewType(sub.subscriptionType);
-                  setEditDialogOpen(true);
-                }}
-              >
-                <div className="card-part first-part">
-                  <h3>{sub.name}</h3>
-                </div>
-                <div className="card-part second-part">
-                  <p>{sub.email}</p>
-                </div>
+        <div className="users-list">
+          {users.length > 0 ? (
+            users.map((user, idx) => (
+              <div key={user.id || idx} className="user-card">
+                <div className="card-part first-part"><h3>{user.fullName || 'N/A'}</h3></div>
+                <div className="card-part second-part"><p>{user.email || 'N/A'}</p></div>
                 <div className="card-part third-part">
-                  <p>{sub.subscriptionType}</p>
-                </div>
-                <div className="card-part fourth-part">
-                  <p>{sub.expiresAt}</p>
+                  {user.subscriptions && user.subscriptions.length > 0
+                    ? user.subscriptions[0].plan
+                    : 'No Plan'}
                 </div>
               </div>
-            );
-          })}
+            ))
+          ) : (
+            <p>No users found.</p>
+          )}
         </div>
       </div>
-
-      <button className="add-btn-floating" onClick={() => setIsDialogOpen(true)}>
-        Add Subscriber
-      </button>
-
-      {editDialogOpen && selectedSubscriberIndex !== null && (
-        <div className="dialog-backdrop" onClick={() => setEditDialogOpen(false)}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>Renew Subscription</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-
-                const subsCopy = [...subscribers];
-                const sub = subsCopy[selectedSubscriberIndex];
-
-                let baseDate;
-                if (sub.expiresAt && sub.expiresAt !== '-') {
-                  baseDate = new Date(sub.expiresAt);
-                } else {
-                  baseDate = new Date();
-                }
-
-                let newExpiry = '-';
-
-                if (renewType === 'Monthly') {
-                  baseDate.setMonth(baseDate.getMonth() + 1);
-                  newExpiry = baseDate.toISOString().split('T')[0];
-                } else if (renewType === 'Yearly') {
-                  baseDate.setFullYear(baseDate.getFullYear() + 1);
-                  newExpiry = baseDate.toISOString().split('T')[0];
-                } else {
-                  newExpiry = '-';
-                }
-
-                sub.subscriptionType = renewType;
-                sub.expiresAt = newExpiry;
-
-                setSubscribers(subsCopy);
-                setEditDialogOpen(false);
-              }}
-              className="add-form"
-            >
-              <label>Renew As:</label>
-              <select
-                value={renewType}
-                onChange={(e) => setRenewType(e.target.value)}
-              >
-                <option value="Monthly">Monthly</option>
-                <option value="Yearly">Yearly</option>
-                <option value="Lifetime">Lifetime</option>
-              </select>
-              <button type="submit">Renew</button>
-            </form>
-            <div className='delete-close-btn'>
-              <button className="delete-btn" onClick={handleDeleteSubscriber}>
-                Delete Subscriber
-              </button>
-              <button className="close-btn" onClick={() => setEditDialogOpen(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isDialogOpen && (
-        <div className="dialog-backdrop" onClick={() => setIsDialogOpen(false)}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>Add New Subscriber</h2>
-            <form onSubmit={handleAddSubscriber} className="add-form">
-              <input
-                type="text"
-                placeholder="Name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-              />
-              <select
-                value={newType}
-                onChange={(e) => setNewType(e.target.value)}
-              >
-                <option value="Monthly">Monthly</option>
-                <option value="Yearly">Yearly</option>
-                <option value="Lifetime">Lifetime</option>
-              </select>
-              <button type="submit">Add</button>
-            </form>
-            <button className="close-btn" onClick={() => setIsDialogOpen(false)}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
