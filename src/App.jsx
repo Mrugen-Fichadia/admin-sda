@@ -36,7 +36,7 @@ function App() {
           // Sign out if email is not work.ignito@gmail.com
           auth.signOut();
           setCurrentUser(null);
-          setSignInError('Only work.ignito@gmail.com is allowed to sign in.');
+          setSignInError('email not valid');
           setLoading(false);
         }
       } else {
@@ -78,7 +78,7 @@ function App() {
     setSignInError('');
 
     if (signInEmail !== 'work.ignito@gmail.com') {
-      setSignInError('Only work.ignito@gmail.com is allowed to sign in.');
+      setSignInError('Only authorized user is allowed to sign in.');
       return;
     }
 
@@ -195,7 +195,7 @@ function App() {
           <form onSubmit={handleSignIn}>
             <input
               type="email"
-              placeholder="Enter email (work.ignito@gmail.com)"
+              placeholder="Enter email "
               value={signInEmail}
               onChange={(e) => setSignInEmail(e.target.value)}
             />
