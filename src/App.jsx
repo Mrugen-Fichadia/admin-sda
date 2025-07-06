@@ -22,18 +22,15 @@ function App() {
   const [signInEmail, setSignInEmail] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
   const [signInError, setSignInError] = useState('');
-  const currentDate = new Date(); // Current date: July 06, 2025
+  const currentDate = new Date();
 
-  // Monitor authentication state
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         if (user.email === 'work.ignito@gmail.com') {
           setCurrentUser(user);
           setSignInError('');
-          console.log('Authenticated user:', user.uid, user.email);
         } else {
-          // Sign out if email is not work.ignito@gmail.com
           auth.signOut();
           setCurrentUser(null);
           setSignInError('email not valid');
@@ -48,27 +45,30 @@ function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Fetch users data
   useEffect(() => {
     if (!currentUser) return;
 
-    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      console.log('Users snapshot:', snapshot.docs);
-      const usersData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setUsers(usersData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error fetching users:', error);
-      if (error.code === 'permission-denied') {
-        setError('Permission denied: You do not have access to view users.');
-      } else {
-        setError('Failed to fetch users: ' + error.message);
+    const unsubscribeUsers = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
+        const usersData = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter((user) => user.role === 'distributor');
+        setUsers(usersData);
+        setLoading(false);
+      },
+      (error) => {
+        if (error.code === 'permission-denied') {
+          setError('Permission denied: You do not have access to view users.');
+        } else {
+          setError('Failed to fetch users: ' + error.message);
+        }
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribeUsers();
   }, [currentUser]);
@@ -93,7 +93,6 @@ function App() {
       setSignInEmail('');
       setSignInPassword('');
     } catch (err) {
-      console.error('Sign-in error:', err);
       if (err.code === 'auth/wrong-password') {
         setSignInError('Incorrect password.');
       } else if (err.code === 'auth/user-not-found') {
@@ -120,7 +119,6 @@ function App() {
 
     setLoading(true);
     try {
-      console.log('Updating subscription for:', userEmail, plan);
       const q = query(collection(db, 'users'), where('email', '==', userEmail));
       const querySnapshot = await getDocs(q);
 
@@ -131,34 +129,45 @@ function App() {
       }
 
       const userDoc = querySnapshot.docs[0];
-      const userId = userDoc.id;
+      const userData = userDoc.data();
       const today = new Date();
-      let endDate = new Date(today);
-      const originalDay = today.getDate(); // Preserve the day (6th)
 
-      if (plan === 'Monthly Plan') {
-        endDate.setMonth(today.getMonth() + 1); // e.g., August 6, 2025
-      } else if (plan === 'Yearly Plan') {
-        endDate.setFullYear(today.getFullYear() + 1); // July 6, 2026
+      // Determine base date for extension
+      const existingSub = userData.subscription || {};
+      let baseDate = today;
+
+      if (existingSub.endDate) {
+        const parsed = new Date(existingSub.endDate);
+        if (!isNaN(parsed.getTime()) && parsed > today) {
+          baseDate = parsed;
+        }
+      }
+
+      let endDate = new Date(baseDate);
+      const originalDay = baseDate.getDate();
+
+      if (plan === 'Monthly Essential') {
+        endDate.setMonth(endDate.getMonth() + 1);
+      } else if (plan === 'Annual Premium') {
+        endDate.setFullYear(endDate.getFullYear() + 1);
       } else if (plan === 'Lifetime Plan') {
-        endDate = new Date('2050-12-31');
+        endDate = new Date('2100-12-31');
       }
 
       if (plan !== 'Lifetime Plan') {
-        endDate.setDate(originalDay); // Ensure day remains the same
+        endDate.setDate(originalDay);
       }
 
       const subscriptionData = {
         plan,
-        amount: plan === 'Monthly Plan' ? 699 : plan === 'Yearly Plan' ? 5999 : 24999,
-        startDate: today.toISOString().split('T')[0], // e.g., "2025-07-06"
-        endDate: endDate.toISOString().split('T')[0], // e.g., "2025-08-06"
-        createdAt: today.toISOString().split('T')[0], // e.g., "2025-07-06"
+        amount: plan === 'Monthly Essential' ? 699 : plan === 'Annual Premium' ? 5999 : 24999,
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        createdAt: today.toISOString().split('T')[0],
         paymentId: 'not_provided',
         orderId: 'not_provided',
       };
 
-      console.log('Subscription data being sent:', subscriptionData);
       await updateDoc(userDoc.ref, {
         subscription: subscriptionData,
       });
@@ -167,9 +176,9 @@ function App() {
       setUserEmail('');
       setPlan('Lifetime Plan');
       setIsDialogOpen(false);
+      setError('');
       setLoading(false);
     } catch (err) {
-      console.error('Subscription update error:', err);
       if (err.code === 'permission-denied') {
         setError('Permission denied: You do not have permission to update this subscription.');
       } else {
@@ -179,7 +188,13 @@ function App() {
     }
   };
 
-  const openDialog = () => setIsDialogOpen(true);
+  const openDialog = (user) => {
+    const sub = user.subscriptions?.[0] || user.subscription || {};
+    setUserEmail(user.email || '');
+    setPlan(sub.plan || 'Lifetime Plan');
+    setIsDialogOpen(true);
+  };
+
   const closeDialog = () => {
     setIsDialogOpen(false);
     setUserEmail('');
@@ -195,7 +210,7 @@ function App() {
           <form onSubmit={handleSignIn}>
             <input
               type="email"
-              placeholder="Enter email "
+              placeholder="Enter email"
               value={signInEmail}
               onChange={(e) => setSignInEmail(e.target.value)}
             />
@@ -227,19 +242,40 @@ function App() {
           <div className="card-part first-part"><strong>Name</strong></div>
           <div className="card-part second-part"><strong>Email</strong></div>
           <div className="card-part third-part"><strong>Plan</strong></div>
+          <div className="card-part fourth-part"><strong>Expiry</strong></div>
         </div>
         <div className="subscribers-list">
           {users.length > 0 ? (
             users.map((user, idx) => {
-              const subscription = user.subscription || {};
-              const endDate = new Date(subscription.endDate || '1970-01-01');
-              const isExpired = currentDate > endDate;
+              const subscription = user.subscriptions?.[0] || user.subscription || {};
+              const timestamp = subscription.endDate;
+              let endDate;
+              let isValidDate = false;
+
+              if (timestamp?.toDate) {
+                endDate = timestamp.toDate();
+                isValidDate = !isNaN(endDate.getTime());
+              } else if (typeof timestamp === 'string') {
+                endDate = new Date(timestamp);
+                isValidDate = !isNaN(endDate.getTime());
+              }
+
+              const isExpired = isValidDate ? currentDate > endDate : true;
+
               return (
-                <div key={user.id || idx} className={`subscriber-card ${isExpired ? 'expired' : ''}`}>
+                <div
+                  key={user.id || idx}
+                  className={`subscriber-card ${isExpired ? 'expired' : ''}`}
+                  onClick={() => openDialog(user)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="card-part first-part"><h3>{user.fullName || 'N/A'}</h3></div>
                   <div className="card-part second-part"><p>{user.email || 'N/A'}</p></div>
                   <div className="card-part third-part">
                     {isExpired ? 'No Plan' : subscription.plan || 'No Plan'}
+                  </div>
+                  <div className="card-part fourth-part">
+                    {isValidDate ? endDate.toLocaleDateString() : '-'}
                   </div>
                 </div>
               );
@@ -249,11 +285,11 @@ function App() {
           )}
         </div>
       </div>
-      <button className="add-btn-floating" onClick={openDialog}>+</button>
+
       {isDialogOpen && (
         <div className="dialog-backdrop" onClick={closeDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>Add Subscription</h2>
+            <h2>{userEmail ? 'Edit Subscription' : 'Add Subscription'}</h2>
             <div className="add-form">
               <input
                 type="email"
@@ -263,8 +299,8 @@ function App() {
               />
               <select value={plan} onChange={(e) => setPlan(e.target.value)}>
                 <option value="Lifetime Plan">Lifetime Plan (₹24,999)</option>
-                <option value="Monthly Plan">Monthly Plan (₹699)</option>
-                <option value="Yearly Plan">Yearly Plan (₹5,999)</option>
+                <option value="Monthly Essential">Monthly Plan (₹699)</option>
+                <option value="Annual Premium">Yearly Plan (₹5,999)</option>
               </select>
               <button onClick={updateSubscription}>Update Subscription</button>
               {error && <p className="error">{error}</p>}
