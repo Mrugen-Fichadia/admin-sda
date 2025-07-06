@@ -207,28 +207,43 @@ function App() {
       <div className="admin-panel">
         <h1 className="panel-heading">Smart Distributor Admin Panel - Sign In</h1>
         <div className="sign-in-form">
-          <form onSubmit={handleSignIn}>
-            <input
-              type="email"
-              placeholder="Enter email"
-              value={signInEmail}
-              onChange={(e) => setSignInEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="Enter password"
-              value={signInPassword}
-              onChange={(e) => setSignInPassword(e.target.value)}
-            />
-            <button type="submit" disabled={loading}>
+          <form onSubmit={handleSignIn} className="form">
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={signInEmail}
+                onChange={(e) => setSignInEmail(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
+  
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={signInPassword}
+                onChange={(e) => setSignInPassword(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
+  
+            <button type="submit" disabled={loading} className="button">
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
+  
             {signInError && <p className="error">{signInError}</p>}
           </form>
         </div>
       </div>
     );
-  }
+  }  
 
   if (loading) {
     return <div className="loading">Loading...</div>;
