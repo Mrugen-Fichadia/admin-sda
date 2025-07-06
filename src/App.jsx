@@ -12,11 +12,13 @@ import {
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 
 function App() {
+  const [manualSignInAttempted, setManualSignInAttempted] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [users, setUsers] = useState([]);
   const [userEmail, setUserEmail] = useState('');
   const [plan, setPlan] = useState('Lifetime Plan');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [signInEmail, setSignInEmail] = useState('');
@@ -27,27 +29,32 @@ function App() {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        if (user.email === 'work.ignito@gmail.com') {
+        setLoading(true);
+        if (user.email === 'work.ignito@gmail.com' && manualSignInAttempted) {
           setCurrentUser(user);
           setSignInError('');
         } else {
           auth.signOut();
           setCurrentUser(null);
-          setSignInError('email not valid');
-          setLoading(false);
+          if (manualSignInAttempted) {
+            setSignInError('Email not valid');
+          }
         }
+        setLoading(false);
       } else {
         setCurrentUser(null);
         setLoading(false);
       }
     });
-
+  
     return () => unsubscribeAuth();
-  }, []);
+  }, [manualSignInAttempted]);  
 
   useEffect(() => {
     if (!currentUser) return;
-
+  
+    setLoadingUsers(true); // <-- Start loading users
+  
     const unsubscribeUsers = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
@@ -58,7 +65,7 @@ function App() {
           }))
           .filter((user) => user.role === 'distributor');
         setUsers(usersData);
-        setLoading(false);
+        setLoadingUsers(false); // <-- Done loading
       },
       (error) => {
         if (error.code === 'permission-denied') {
@@ -66,33 +73,36 @@ function App() {
         } else {
           setError('Failed to fetch users: ' + error.message);
         }
-        setLoading(false);
+        setLoadingUsers(false);
       }
     );
-
+  
     return () => unsubscribeUsers();
-  }, [currentUser]);
+  }, [currentUser]);  
 
   const handleSignIn = async (e) => {
     e.preventDefault();
+    setManualSignInAttempted(true); // <-- set flag
     setSignInError('');
-
+  
     if (signInEmail !== 'work.ignito@gmail.com') {
       setSignInError('Only authorized user is allowed to sign in.');
       return;
     }
-
+  
     if (!signInPassword) {
       setSignInError('Please enter a password.');
       return;
     }
-
+  
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
       setSignInEmail('');
       setSignInPassword('');
     } catch (err) {
+      setLoading(false);
+      // error handling...
       if (err.code === 'auth/wrong-password') {
         setSignInError('Incorrect password.');
       } else if (err.code === 'auth/user-not-found') {
@@ -102,9 +112,8 @@ function App() {
       } else {
         setSignInError('Failed to sign in: ' + err.message);
       }
-      setLoading(false);
     }
-  };
+  };  
 
   const updateSubscription = async () => {
     if (!currentUser) {
@@ -260,7 +269,8 @@ function App() {
           <div className="card-part fourth-part"><strong>Expiry</strong></div>
         </div>
         <div className="subscribers-list">
-          {users.length > 0 ? (
+          {loadingUsers ? (<p>Loading users...</p>)
+            : users.length > 0 ? (
             users.map((user, idx) => {
               const subscription = user.subscriptions?.[0] || user.subscription || {};
               const timestamp = subscription.endDate;
